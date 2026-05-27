@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube 轉 MP3 下載器 | YouTube to MP3 Converter</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Noto Sans TC', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .container {
+            max-width: 650px;
+            width: 100%;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px 30px;
+            position: relative;
+        }
+        .lang-switch {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            display: flex;
+            gap: 10px;
+        }
+        .lang-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            padding: 5px 12px;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .lang-btn.active {
+            background: white;
+            color: #667eea;
+        }
+        .header h1 { font-size: 26px; margin-bottom: 8px; }
+        .header p { opacity: 0.9; font-size: 14px; }
+        .content { padding: 30px; }
+        .input-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #333; }
+        input[type="text"], select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+        input[type="text"]:focus, select:focus { outline: none; border-color: #667eea; }
+        button {
+            padding: 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+        }
+        button:hover:not(:disabled) { transform: translateY(-2px); }
+        button:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; width: 100%; }
+        .btn-secondary { background: #f0f0f0; color: #333; margin-top: 10px; width: 100%; }
+        .folder-selector {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+        }
+        .folder-path {
+            flex: 1;
+            padding: 10px 12px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            font-size: 12px;
+            color: #666;
+            word-break: break-all;
+            border: 1px solid #e0e0e0;
+        }
+        .btn-folder {
+            padding: 10px 20px;
+            background: #10b981;
+            color: white;
+            font-size: 14px;
+            width: auto;
+        }
+        .info-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            display: none;
+        }
+        .video-title { font-weight: 600; color: #333; margin-bottom: 5px; font-size: 14px; }
+        .video-meta { color: #666; font-size: 12px; }
+        .status {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+            display: none;
+            font-size: 14px;
+        }
+        .status.loading { display: block; background: #e3f2fd; color: #1976d2; }
+        .status.success { display: block; background: #d4edda; color: #155724; }
+        .status.error { display: block; background: #f8d7da; color: #721c24; }
+        @media (max-width: 480px) { .content { padding: 20px; } .folder-selector { flex-direction: column; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="lang-switch">
+                <button class="lang-btn active" data-lang="zh">中文</button>
+                <button class="lang-btn" data-lang="en">EN</button>
+            </div>
+            <h1 id="title">🎵 YouTube 轉 MP3 下載器</h1>
+            <p id="subtitle">將任何 YouTube 影片下載為高品質 MP3</p>
+        </div>
+        <div class="content">
+            <div class="input-group">
+                <label id="urlLabel">🔗 YouTube 網址</label>
+                <input type="text" id="urlInput" placeholder="https://www.youtube.com/watch?v=..." />
+            </div>
+            <div class="input-group">
+                <label id="qualityLabel">🎧 MP3 音質</label>
+                <select id="qualitySelect">
+                    <option value="64">64 kbps (低音質)</option>
+                    <option value="128" selected>128 kbps (標準)</option>
+                    <option value="192">192 kbps (良好)</option>
+                    <option value="320">320 kbps (最佳)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label id="folderLabel">📁 儲存位置</label>
+                <div class="folder-selector">
+                    <div class="folder-path" id="folderPath">📂 預設下載資料夾</div>
+                    <button class="btn-folder" id="selectFolderBtn">📁 選擇資料夾</button>
+                </div>
+            </div>
+            <button class="btn-primary" id="getInfoBtn">🔍 取得影片資訊</button>
+            <button class="btn-secondary" id="downloadBtn" disabled>⬇️ 下載 MP3</button>
+            <div id="videoInfo" class="info-card">
+                <div class="video-title" id="videoTitle"></div>
+                <div class="video-meta" id="videoMeta"></div>
+            </div>
+            <div id="status" class="status"></div>
+        </div>
+    </div>
+    <script>
+        // 多語言支援
+        const translations = {
+            zh: {
+                title: '🎵 YouTube 轉 MP3 下載器',
+                subtitle: '將任何 YouTube 影片下載為高品質 MP3',
+                urlLabel: '🔗 YouTube 網址',
+                qualityLabel: '🎧 MP3 音質',
+                folderLabel: '📁 儲存位置',
+                defaultFolder: '📂 預設下載資料夾',
+                selectFolder: '📁 選擇資料夾',
+                getInfo: '🔍 取得影片資訊',
+                download: '⬇️ 下載 MP3',
+                fetching: '⏳ 正在獲取影片資訊...',
+                ready: '✅ 準備下載：',
+                error: '❌ 錯誤：',
+                downloadStart: '⏳ 正在轉換 MP3，請稍候...',
+                downloadComplete: '✅ 下載完成！',
+                downloadFailed: '❌ 下載失敗：',
+                noUrl: '請輸入 YouTube 網址',
+                noInfo: '請先取得影片資訊',
+                folderSelected: '📁 已選擇資料夾：',
+                folderSaveHint: '💾 檔案將儲存到您選擇的資料夾',
+                author: '作者',
+                minutes: '分'
+            },
+            en: {
+                title: '🎵 YouTube to MP3 Converter',
+                subtitle: 'Download any YouTube video as high-quality MP3',
+                urlLabel: '🔗 YouTube URL',
+                qualityLabel: '🎧 MP3 Quality',
+                folderLabel: '📁 Save Location',
+                defaultFolder: '📂 Default Downloads Folder',
+                selectFolder: '📁 Select Folder',
+                getInfo: '🔍 Get Video Info',
+                download: '⬇️ Download MP3',
+                fetching: '⏳ Fetching video information...',
+                ready: '✅ Ready to download:',
+                error: '❌ Error:',
+                downloadStart: '⏳ Converting to MP3, please wait...',
+                downloadComplete: '✅ Download complete!',
+                downloadFailed: '❌ Download failed:',
+                noUrl: 'Please enter a YouTube URL',
+                noInfo: 'Please get video info first',
+                folderSelected: '📁 Selected folder:',
+                folderSaveHint: '💾 File will be saved to your selected folder',
+                author: 'Author',
+                minutes: 'min'
+            }
+        };
+        
+        let currentLang = 'zh';
+        let currentVideo = null;
+        let selectedFolderHandle = null;
+        let selectedFolderPath = null;
+        
+        // DOM elements
+        const urlInput = document.getElementById('urlInput');
+        const qualitySelect = document.getElementById('qualitySelect');
+        const getInfoBtn = document.getElementById('getInfoBtn');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const selectFolderBtn = document.getElementById('selectFolderBtn');
+        const folderPathDiv = document.getElementById('folderPath');
+        const videoInfoDiv = document.getElementById('videoInfo');
+        const videoTitle = document.getElementById('videoTitle');
+        const videoMeta = document.getElementById('videoMeta');
+        const statusDiv = document.getElementById('status');
+        
+        // 更新UI語言
+        function updateLanguage() {
+            const t = translations[currentLang];
+            document.getElementById('title').textContent = t.title;
+            document.getElementById('subtitle').textContent = t.subtitle;
+            document.getElementById('urlLabel').textContent = t.urlLabel;
+            document.getElementById('qualityLabel').textContent = t.qualityLabel;
+            document.getElementById('folderLabel').textContent = t.folderLabel;
+            
+            if (!selectedFolderHandle) {
+                folderPathDiv.textContent = t.defaultFolder;
+            } else {
+                folderPathDiv.textContent = t.folderSelected + ' ' + selectedFolderPath;
+            }
+            
+            selectFolderBtn.textContent = t.selectFolder;
+            getInfoBtn.textContent = t.getInfo;
+            downloadBtn.textContent = t.download;
+            
+            // 更新品質選項文字
+            const options = qualitySelect.options;
+            if (currentLang === 'zh') {
+                options[0].text = '64 kbps (低音質)';
+                options[1].text = '128 kbps (標準)';
+                options[2].text = '192 kbps (良好)';
+                options[3].text = '320 kbps (最佳)';
+            } else {
+                options[0].text = '64 kbps (Low)';
+                options[1].text = '128 kbps (Standard)';
+                options[2].text = '192 kbps (Good)';
+                options[3].text = '320 kbps (Best)';
+            }
+        }
+        
+        // 切換語言
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentLang = btn.dataset.lang;
+                document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                updateLanguage();
+                if (currentVideo) {
+                    showStatus(translations[currentLang].ready + ' ' + currentVideo.title, 'success');
+                }
+            });
+        });
+        
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+            statusDiv.style.display = 'block';
+            if (type !== 'loading') {
+                setTimeout(() => { statusDiv.style.display = 'none'; }, 5000);
+            }
+        }
+        
+        // 選擇資料夾 (使用 File System Access API)
+        selectFolderBtn.addEventListener('click', async () => {
+            if ('showDirectoryPicker' in window) {
+                try {
+                    const dirHandle = await window.showDirectoryPicker();
+                    selectedFolderHandle = dirHandle;
+                    selectedFolderPath = dirHandle.name;
+                    const t = translations[currentLang];
+                    folderPathDiv.textContent = t.folderSelected + ' ' + selectedFolderPath;
+                    showStatus(t.folderSaveHint, 'success');
+                    console.log('Folder selected:', selectedFolderPath);
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        showStatus('取消選擇或無法存取資料夾', 'error');
+                        console.error('Folder selection error:', err);
+                    }
+                }
+            } else {
+                showStatus('您的瀏覽器不支援選擇資料夾，將使用預設下載位置', 'error');
+                console.warn('File System Access API not supported');
+            }
+        });
+        
+        // 取得影片資訊
+        getInfoBtn.addEventListener('click', async () => {
+            const url = urlInput.value.trim();
+            if (!url) {
+                showStatus(translations[currentLang].noUrl, 'error');
+                return;
+            }
+            showStatus(translations[currentLang].fetching, 'loading');
+            getInfoBtn.disabled = true;
+            try {
+                const response = await fetch('/api/info', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Failed');
+                currentVideo = { url, ...data };
+                const durationMin = Math.floor(data.duration / 60);
+                const durationSec = data.duration % 60;
+                const t = translations[currentLang];
+                videoTitle.textContent = data.title;
+                videoMeta.textContent = `👤 ${t.author}: ${data.author} • ⏱️ ${durationMin}:${durationSec.toString().padStart(2, '0')} ${t.minutes}`;
+                videoInfoDiv.style.display = 'block';
+                downloadBtn.disabled = false;
+                showStatus(t.ready + ' ' + data.title, 'success');
+            } catch (error) {
+                showStatus(translations[currentLang].error + ' ' + error.message, 'error');
+                downloadBtn.disabled = true;
+            } finally {
+                getInfoBtn.disabled = false;
+            }
+        });
+        
+        // 下載 MP3 並儲存到選擇的資料夾
+        downloadBtn.addEventListener('click', async () => {
+            if (!currentVideo) {
+                showStatus(translations[currentLang].noInfo, 'error');
+                return;
+            }
+            const bitrate = qualitySelect.value;
+            const t = translations[currentLang];
+            showStatus(t.downloadStart, 'loading');
+            downloadBtn.disabled = true;
+            getInfoBtn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        url: currentVideo.url, 
+                        bitrate: bitrate
+                    })
+                });
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Download failed');
+                }
+                
+                const blob = await response.blob();
+                const fileName = currentVideo.title.replace(/[^\w\s\u4e00-\u9fff\-]/gi, '') + '.mp3';
+                
+                // 如果有選擇資料夾且支援 File System Access API
+                if (selectedFolderHandle && 'showDirectoryPicker' in window) {
+                    try {
+                        console.log('Saving to selected folder:', selectedFolderPath);
+                        const fileHandle = await selectedFolderHandle.getFileHandle(fileName, { create: true });
+                        const writable = await fileHandle.createWritable();
+                        await writable.write(blob);
+                        await writable.close();
+                        showStatus(t.downloadComplete + ' ' + t.folderSaveHint, 'success');
+                        console.log('File saved successfully to folder');
+                    } catch (folderError) {
+                        console.error('Folder save error:', folderError);
+                        // 如果寫入資料夾失敗，改用預設下載
+                        fallbackDownload(blob, fileName, t);
+                    }
+                } else {
+                    // 預設下載方式
+                    fallbackDownload(blob, fileName, t);
+                }
+            } catch (error) {
+                showStatus(t.downloadFailed + ' ' + error.message, 'error');
+                console.error('Download error:', error);
+            } finally {
+                downloadBtn.disabled = false;
+                getInfoBtn.disabled = false;
+            }
+        });
+        
+        function fallbackDownload(blob, fileName, t) {
+            const downloadUrl = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = downloadUrl;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(downloadUrl);
+            showStatus(t.downloadComplete, 'success');
+        }
+        
+        // 初始化
+        updateLanguage();
+        console.log('App initialized. Folder selection supported:', 'showDirectoryPicker' in window);
+    </script>
+</body>
+</html>
